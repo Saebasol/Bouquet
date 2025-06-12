@@ -1,0 +1,40 @@
+http:
+  routers:
+    other_application:
+      rule: "Host(`example.com`)"
+      entryPoints: ["websecure"]
+      service: "other_application-service"
+      tls:
+        certResolver: "cfresolver"
+
+    other_application-http:
+      rule: "Host(`example.com`)"
+      entryPoints: ["web"]
+      middlewares: ["https-redirect"]
+      service: "other_application-service"
+
+    other_application-www:
+      rule: "Host(`www.example.com`)"
+      entryPoints: ["web", "websecure"]
+      middlewares: ["redirect-www-to-other_application"]
+      tls:
+        certResolver: "cfresolver"
+      service: "other_application-service"
+
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: "https"
+        permanent: true
+
+    redirect-www-to-other_application:
+      redirectRegex:
+        regex: "^https?://www\\.other_application\\.example\\.com(.*)"
+        replacement: "https://example.com${1}"
+        permanent: true
+
+  services:
+    other_application-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8000" 
