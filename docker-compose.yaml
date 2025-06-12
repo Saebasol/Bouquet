@@ -1,0 +1,104 @@
+services:
+  traefik:
+    image: traefik
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # If you do not use Cloudflare, you can use other DNS providers
+      # ref: https://doc.traefik.io/traefik/https/acme/
+      CLOUDFLARE_EMAIL: <cloudflare_email>
+      CLOUDFLARE_DNS_API_TOKEN: <cloudflare_api_token>
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      # Uncomment this line if you want to use a dynamic configuration file
+      # - ./dynamic.yaml:/etc/traefik/dynamic/dynamic.yml:ro 
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      # dynamic configuration you can use for advanced routing
+      # - --providers.file.directory=/etc/traefik/dynamic 
+      # - --providers.file.watch=true
+      # As you can see above, if you use other DNS providers, you must change the command below
+      - --certificatesresolvers.cfresolver.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cfresolver.acme.email=<cloudflare_email>
+      - --certificatesresolvers.cfresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.cfresolver.acme.dnschallenge.delaybeforecheck=0
+
+  heliotrope:
+    image: ghcr.io/saebasol/heliotrope:latest
+    container_name: heliotrope
+    expose:
+      - "8000"
+    depends_on:
+      - postgres
+      - mongodb
+    environment:
+      # https://github.com/Saebasol/Heliotrope/blob/main/heliotrope/infrastructure/sanic/config.py
+      SANIC_USE_ENV: "true"
+      SANIC_PRODUCTION: "true"
+      SANIC_HOST: "0.0.0.0"
+      SANIC_SENTRY_DSN: ""
+      SANIC_GALLERYINFO_DB_URL: postgresql+asyncpg://postgres_example_user:postgres_example_passwd@postgres-heliotrope:5432/heliotrope
+      SANIC_INFO_DB_URL: mongodb://mongo_example_user:mongo_example_passwd@mongo-heliotrope:27017
+      SANIC_INDEX_FILES: '["index-korean.nozomi"]'
+    labels:
+      - "traefik.enable=true"
+
+      # HTTPS router
+      - "traefik.http.routers.heliotrope.rule=Host(`example.com`)"
+      - "traefik.http.routers.heliotrope.entrypoints=websecure"
+      - "traefik.http.routers.heliotrope.tls.certresolver=cfresolver"
+      - "traefik.http.services.heliotrope.loadbalancer.server.port=8000"
+
+      # HTTP → HTTPS
+      - "traefik.http.routers.heliotrope-http.rule=Host(`example.com`)"
+      - "traefik.http.routers.heliotrope-http.entrypoints=web"
+      - "traefik.http.routers.heliotrope-http.middlewares=https-redirect"
+
+      # www → non-www
+      - "traefik.http.routers.heliotrope-www.rule=Host(`www.example.com`)"
+      - "traefik.http.routers.heliotrope-www.entrypoints=web,websecure"
+      - "traefik.http.routers.heliotrope-www.middlewares=redirect-to-root"
+      - "traefik.http.routers.heliotrope-www.tls.certresolver=cfresolver"
+
+      # Middlewares
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.regex=^https?://www\\.(.+)"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.replacement=https://$1"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.permanent=true"
+
+  postgres:
+    image: postgres
+    container_name: postgres-heliotrope
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres_example_user
+      POSTGRES_PASSWORD: postgres_example_passwd
+      POSTGRES_DB: heliotrope
+
+  mongodb:
+    container_name: mongo-heliotrope
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo_example_user
+      MONGO_INITDB_ROOT_PASSWORD: mongo_example_passwd
+
+volumes:
+  mongodb_data:
+  pgdata:
