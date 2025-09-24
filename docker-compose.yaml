@@ -76,8 +76,7 @@ services:
 
   hibiscus:
     build:
-      context: ./Hibiscus
-      dockerfile: Dockerfile
+      context: https://github.com/Saebasol/Hibiscus.git
     container_name: hibiscus
     restart: always
     environment:
