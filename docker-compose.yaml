@@ -74,6 +74,44 @@ services:
       - "traefik.http.middlewares.redirect-to-root.redirectregex.replacement=https://$1"
       - "traefik.http.middlewares.redirect-to-root.redirectregex.permanent=true"
 
+  hibiscus:
+    build:
+      context: ./Hibiscus
+      dockerfile: Dockerfile
+    container_name: hibiscus
+    restart: always
+    environment:
+      - HELIOTROPE_BASE_URL=http://heliotrope:8000/api
+    ports:
+      - 3000:3000
+    depends_on:
+      - heliotrope
+    labels:
+      - "traefik.enable=true"
+
+      # HTTPS router
+      - "traefik.http.routers.hibiscus.rule=Host(`hibiscus.example.com`)"
+      - "traefik.http.routers.hibiscus.entrypoints=websecure"
+      - "traefik.http.routers.hibiscus.tls.certresolver=cfresolver"
+      - "traefik.http.services.hibiscus.loadbalancer.server.port=3000"
+
+      # HTTP → HTTPS
+      - "traefik.http.routers.hibiscus-http.rule=Host(`hibiscus.example.com`)"
+      - "traefik.http.routers.hibiscus-http.entrypoints=web"
+      - "traefik.http.routers.hibiscus-http.middlewares=https-redirect"
+
+      # www → non-www
+      - "traefik.http.routers.hibiscus-www.rule=Host(`www.hibiscus.example.com`)"
+      - "traefik.http.routers.hibiscus-www.entrypoints=web,websecure"
+      - "traefik.http.routers.hibiscus-www.middlewares=redirect-to-root"
+      - "traefik.http.routers.hibiscus-www.tls.certresolver=cfresolver"
+
+      # Middlewares
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.regex=^https?://www\\.(.+)"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.replacement=https://$1"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.permanent=true"
+
   postgres:
     image: postgres
     container_name: postgres-heliotrope
