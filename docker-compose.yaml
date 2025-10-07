@@ -80,7 +80,7 @@ services:
     container_name: hibiscus
     restart: always
     environment:
-      - HELIOTROPE_BASE_URL=http://heliotrope:8000/api
+      - HELIOTROPE_BASE_URL=http://heliotrope:8000
     ports:
       - 3000:3000
     depends_on:
