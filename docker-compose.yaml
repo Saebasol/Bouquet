@@ -41,13 +41,13 @@ services:
       - mongodb
     environment:
       # https://github.com/Saebasol/Heliotrope/blob/main/heliotrope/infrastructure/sanic/config.py
-      SANIC_USE_ENV: "true"
-      SANIC_PRODUCTION: "true"
-      SANIC_HOST: "0.0.0.0"
-      SANIC_SENTRY_DSN: ""
-      SANIC_GALLERYINFO_DB_URL: postgresql+asyncpg://postgres_example_user:postgres_example_passwd@postgres-heliotrope:5432/heliotrope
-      SANIC_INFO_DB_URL: mongodb://mongo_example_user:mongo_example_passwd@mongo-heliotrope:27017
-      SANIC_INDEX_FILES: '["index-korean.nozomi"]'
+      HELIOTROPE_USE_ENV: "true"
+      HELIOTROPE_PRODUCTION: "true"
+      HELIOTROPE_HOST: "0.0.0.0"
+      HELIOTROPE_SENTRY_DSN: ""
+      HELIOTROPE_GALLERYINFO_DB_URL: postgresql+asyncpg://postgres_example_user:postgres_example_passwd@postgres-heliotrope:5432/heliotrope
+      HELIOTROPE_INFO_DB_URL: mongodb://mongo_example_user:mongo_example_passwd@mongo-heliotrope:27017
+      HELIOTROPE_INDEX_FILES: '["index-korean.nozomi"]'
     labels:
       - "traefik.enable=true"
 
