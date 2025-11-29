@@ -31,6 +31,50 @@ services:
       - --certificatesresolvers.cfresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.cfresolver.acme.dnschallenge.delaybeforecheck=0
 
+  sunflower:
+    image: ghcr.io/saebasol/sunflower:latest
+    container_name: sunflower
+    expose:
+      - "22222"
+    depends_on:
+      - postgres
+      - mongodb
+    environment:
+      # https://github.com/Saebasol/Sunflower/blob/main/sunflower/infrastructure/sanic/config.py
+      SUNFLOWER_USE_ENV: "true"
+      SUNFLOWER_PRODUCTION: "true"
+      SUNFLOWER_HOST: "0.0.0.0"
+      SUNFLOWER_SENTRY_DSN: ""
+      SUNFLOWER_GALLERYINFO_DB_URL: postgresql+asyncpg://postgres_example_user:postgres_example_passwd@postgres-heliotrope:5432/heliotrope
+      SUNFLOWER_INFO_DB_URL: mongodb://mongo_example_user:mongo_example_passwd@mongo-heliotrope:27017
+      SUNFLOWER_INDEX_FILES: '["index-korean.nozomi"]'
+    labels:
+      - "traefik.enable=true"
+
+      # HTTPS router
+      - "traefik.http.routers.heliotrope.rule=Host(`example.com`) && (Path(`/`) || Path(`/api/status`))"
+      - "traefik.http.routers.heliotrope.entrypoints=websecure"
+      - "traefik.http.routers.heliotrope.tls.certresolver=cfresolver"
+      - "traefik.http.services.heliotrope.loadbalancer.server.port=8000"
+
+      # HTTP → HTTPS
+      - "traefik.http.routers.heliotrope-http.rule=Host(`example.com`) && (Path(`/`) || Path(`/api/status`))"
+      - "traefik.http.routers.heliotrope-http.entrypoints=web"
+      - "traefik.http.routers.heliotrope-http.middlewares=https-redirect"
+
+      # www → non-www
+      - "traefik.http.routers.heliotrope-www.rule=Host(`www.example.com`) && (Path(`/`) || Path(`/api/status`))"
+      - "traefik.http.routers.heliotrope-www.entrypoints=web,websecure"
+      - "traefik.http.routers.heliotrope-www.middlewares=redirect-to-root"
+      - "traefik.http.routers.heliotrope-www.tls.certresolver=cfresolver"
+
+      # Middlewares
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.regex=^https?://www\\.(.+)"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.replacement=https://$1"
+      - "traefik.http.middlewares.redirect-to-root.redirectregex.permanent=true"
+  
+
   heliotrope:
     image: ghcr.io/saebasol/heliotrope:latest
     container_name: heliotrope
@@ -47,23 +91,22 @@ services:
       HELIOTROPE_SENTRY_DSN: ""
       HELIOTROPE_GALLERYINFO_DB_URL: postgresql+asyncpg://postgres_example_user:postgres_example_passwd@postgres-heliotrope:5432/heliotrope
       HELIOTROPE_INFO_DB_URL: mongodb://mongo_example_user:mongo_example_passwd@mongo-heliotrope:27017
-      HELIOTROPE_INDEX_FILES: '["index-korean.nozomi"]'
     labels:
       - "traefik.enable=true"
 
       # HTTPS router
-      - "traefik.http.routers.heliotrope.rule=Host(`example.com`)"
+      - "traefik.http.routers.heliotrope.rule=Host(`example.com`) && PathPrefix(`/`)"
       - "traefik.http.routers.heliotrope.entrypoints=websecure"
       - "traefik.http.routers.heliotrope.tls.certresolver=cfresolver"
       - "traefik.http.services.heliotrope.loadbalancer.server.port=8000"
 
       # HTTP → HTTPS
-      - "traefik.http.routers.heliotrope-http.rule=Host(`example.com`)"
+      - "traefik.http.routers.heliotrope-http.rule=Host(`example.com`) && PathPrefix(`/`)"
       - "traefik.http.routers.heliotrope-http.entrypoints=web"
       - "traefik.http.routers.heliotrope-http.middlewares=https-redirect"
 
       # www → non-www
-      - "traefik.http.routers.heliotrope-www.rule=Host(`www.example.com`)"
+      - "traefik.http.routers.heliotrope-www.rule=Host(`www.example.com`) && PathPrefix(`/`)"
       - "traefik.http.routers.heliotrope-www.entrypoints=web,websecure"
       - "traefik.http.routers.heliotrope-www.middlewares=redirect-to-root"
       - "traefik.http.routers.heliotrope-www.tls.certresolver=cfresolver"
