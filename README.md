@@ -7,6 +7,7 @@ Bouquet is a easy deployment solution for Heliotrope and Hibiscus.
 This project consists of the following services:
 
 - **Heliotrope**: Main API application
+- **Sunflower**: Hitomi.la mirror service
 - **Hibiscus**: Frontend built on top of Heliotrope
 - **Traefik**: Reverse proxy and load balancer
 - **PostgreSQL**: Relational database for galleryinfo storage
