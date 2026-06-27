@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bouquet-config
+data:
+  HELIOTROPE_PRODUCTION: "true"
+  HELIOTROPE_USE_ENV: "true"
+  HELIOTROPE_HOST: "0.0.0.0"
+  HELIOTROPE_SENTRY_DSN: ""
+
+  SUNFLOWER_PRODUCTION: "true"
+  SUNFLOWER_USE_ENV: "true"
+  SUNFLOWER_HOST: "0.0.0.0"
+  SUNFLOWER_SENTRY_DSN: ""
+  SUNFLOWER_INDEX_FILES: '["index-korean.nozomi"]'
+
+  HELIOTROPE_BASE_URL: "http://heliotrope:8000"

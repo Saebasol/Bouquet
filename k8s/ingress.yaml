@@ -1,0 +1,122 @@
+# example.com — HTTPS (websecure)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bouquet-websecure
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`example.com`) && (Path(`/`) || Path(`/api/status`))
+      kind: Rule
+      priority: 100
+      services:
+        - name: sunflower
+          port: 8000
+    - match: Host(`example.com`) && PathPrefix(`/`)
+      kind: Rule
+      priority: 1
+      services:
+        - name: heliotrope
+          port: 8000
+  tls:
+    certResolver: cfresolver
+    domains:
+      - main: example.com
+---
+# example.com — HTTP → HTTPS redirect (web)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bouquet-http-redirect
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`example.com`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: sunflower
+          port: 8000
+---
+# www.example.com → example.com redirect (web + websecure)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bouquet-www-redirect
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`www.example.com`)
+      kind: Rule
+      middlewares:
+        - name: redirect-to-root
+      services:
+        - name: sunflower
+          port: 8000
+  tls:
+    certResolver: cfresolver
+    domains:
+      - main: www.example.com
+---
+# hibiscus.example.com — HTTPS (websecure)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hibiscus-websecure
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`hibiscus.example.com`)
+      kind: Rule
+      services:
+        - name: hibiscus
+          port: 3000
+  tls:
+    certResolver: cfresolver
+    domains:
+      - main: hibiscus.example.com
+---
+# hibiscus.example.com — HTTP → HTTPS redirect (web)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hibiscus-http-redirect
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`hibiscus.example.com`)
+      kind: Rule
+      middlewares:
+        - name: https-redirect
+      services:
+        - name: hibiscus
+          port: 3000
+---
+# www.hibiscus.example.com → hibiscus.example.com redirect (web + websecure)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hibiscus-www-redirect
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`www.hibiscus.example.com`)
+      kind: Rule
+      middlewares:
+        - name: redirect-to-root
+      services:
+        - name: hibiscus
+          port: 3000
+  tls:
+    certResolver: cfresolver
+    domains:
+      - main: www.hibiscus.example.com

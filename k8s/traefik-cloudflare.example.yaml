@@ -1,0 +1,11 @@
+# Apply this file to the namespace where Traefik is running.
+# This file assumes Traefik is configured to read CF_DNS_API_TOKEN from env
+# and has cert resolver named "cfresolver".
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: traefik
+type: Opaque
+stringData:
+  CF_DNS_API_TOKEN: "your-cloudflare-api-token-here"

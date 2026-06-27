@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sunflower
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sunflower
+  template:
+    metadata:
+      labels:
+        app: sunflower
+    spec:
+      containers:
+        - name: sunflower
+          image: ghcr.io/saebasol/sunflower:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SUNFLOWER_USE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: SUNFLOWER_USE_ENV
+            - name: SUNFLOWER_PRODUCTION
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: SUNFLOWER_PRODUCTION
+            - name: SUNFLOWER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: SUNFLOWER_HOST
+            - name: SUNFLOWER_SENTRY_DSN
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: SUNFLOWER_SENTRY_DSN
+            - name: SUNFLOWER_INDEX_FILES
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: SUNFLOWER_INDEX_FILES
+            - name: SUNFLOWER_GALLERYINFO_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bouquet-secrets
+                  key: SUNFLOWER_GALLERYINFO_DB_URL
+            - name: SUNFLOWER_INFO_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bouquet-secrets
+                  key: SUNFLOWER_INFO_DB_URL
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sunflower
+spec:
+  type: ClusterIP
+  selector:
+    app: sunflower
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

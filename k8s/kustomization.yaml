@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bouquet
+resources:
+  - namespace.yaml
+  - secret.example.yaml
+  - configmap.yaml
+  # PostgreSQL — Choose between CNPG or StatefulSet:
+  #   CNPG (HA): postgres.yaml
+  #   StatefulSet (Default, Single): postgres-statefulset.yaml
+  # - postgres.yaml
+  - postgres-statefulset.yaml
+  - mongodb.yaml
+  - heliotrope.yaml
+  - sunflower.yaml
+  - hibiscus.yaml
+  - middlewares.yaml
+  - ingress.yaml

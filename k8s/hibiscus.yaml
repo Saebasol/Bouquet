@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hibiscus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hibiscus
+  template:
+    metadata:
+      labels:
+        app: hibiscus
+    spec:
+      containers:
+        - name: hibiscus
+          image: ghcr.io/saebasol/hibiscus:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: HELIOTROPE_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: HELIOTROPE_BASE_URL
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hibiscus
+spec:
+  type: ClusterIP
+  selector:
+    app: hibiscus
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: heliotrope
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: heliotrope
+  template:
+    metadata:
+      labels:
+        app: heliotrope
+    spec:
+      containers:
+        - name: heliotrope
+          image: ghcr.io/saebasol/heliotrope:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HELIOTROPE_USE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: HELIOTROPE_USE_ENV
+            - name: HELIOTROPE_PRODUCTION
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: HELIOTROPE_PRODUCTION
+            - name: HELIOTROPE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: HELIOTROPE_HOST
+            - name: HELIOTROPE_SENTRY_DSN
+              valueFrom:
+                configMapKeyRef:
+                  name: bouquet-config
+                  key: HELIOTROPE_SENTRY_DSN
+            - name: HELIOTROPE_GALLERYINFO_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bouquet-secrets
+                  key: HELIOTROPE_GALLERYINFO_DB_URL
+            - name: HELIOTROPE_INFO_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bouquet-secrets
+                  key: HELIOTROPE_INFO_DB_URL
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: heliotrope
+spec:
+  type: ClusterIP
+  selector:
+    app: heliotrope
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
