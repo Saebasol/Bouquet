@@ -1,0 +1,186 @@
+# Docker Swarm Stack — Monitoring Services (Manager + All Nodes)
+# prometheus + grafana + cadvisor + node-exporter
+#
+# Deployment:
+#   docker stack deploy -c docker-stack.yml bouquet-monitoring
+
+services:
+
+  # ── Prometheus ─────────────────────────────────────────────────
+  # Metrics collection — runs on every manager node
+  prometheus:
+    image: prom/prometheus:latest
+    expose:
+      - "9090"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - prometheus_data:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      labels:
+        - "traefik.enable=true"
+
+        # HTTPS router
+        - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
+        - "traefik.http.routers.prometheus.entrypoints=websecure"
+        - "traefik.http.routers.prometheus.tls.certresolver=cfresolver"
+        - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+        # HTTP → HTTPS
+        - "traefik.http.routers.prometheus-http.rule=Host(`prometheus.${DOMAIN}`)"
+        - "traefik.http.routers.prometheus-http.entrypoints=web"
+        - "traefik.http.routers.prometheus-http.middlewares=https-redirect"
+
+        # Middlewares
+        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+    networks:
+      - bouquet-net
+
+  # ── Grafana ─────────────────────────────────────────────────────
+  # Metrics visualization — runs on manager node
+  grafana:
+    image: grafana/grafana:latest
+    expose:
+      - "3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+      GF_SERVER_DOMAIN: grafana.${DOMAIN}
+      # Auto-configure Prometheus datasource
+      GF_DATASOURCES_DEFAULT_TYPE: prometheus
+      GF_DATASOURCES_DEFAULT_URL: http://prometheus:9090
+    volumes:
+      - grafana_data:/var/lib/grafana
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      labels:
+        - "traefik.enable=true"
+
+        # HTTPS router
+        - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls.certresolver=cfresolver"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+        # HTTP → HTTPS
+        - "traefik.http.routers.grafana-http.rule=Host(`grafana.${DOMAIN}`)"
+        - "traefik.http.routers.grafana-http.entrypoints=web"
+        - "traefik.http.routers.grafana-http.middlewares=https-redirect"
+    networks:
+      - bouquet-net
+
+  # ── cAdvisor ────────────────────────────────────────────────────
+  # Container metrics — runs on every node (CPU, memory, network per container)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    expose:
+      - "8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+    networks:
+      - bouquet-net
+
+  # ── Node Exporter ────────────────────────────────────────────────
+  # Host OS metrics — runs on every node (CPU, memory, disk, network)
+  node-exporter:
+    image: prom/node-exporter:latest
+    expose:
+      - "9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.rootfs=/rootfs
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+    networks:
+      - bouquet-net
+
+networks:
+  bouquet-net:
+    external: true
+    name: bouquet-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+configs:
+  prometheus_config:
+    file: ./prometheus.yml

@@ -1,5 +1,5 @@
 # Docker Swarm Stack — Infrastructure/Management Services (Manager Node Only)
-# traefik + grafana + arcane
+# traefik + arcane
 #
 # Deployment:
 #   docker stack deploy -c docker-stack.yml bouquet-infra
@@ -57,55 +57,6 @@ services:
     networks:
       - bouquet-net
 
-  # ── Grafana ─────────────────────────────────────────────────
-  grafana:
-    image: grafana/grafana:latest
-    expose:
-      - "3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
-      GF_SERVER_DOMAIN: grafana.${DOMAIN}
-    volumes:
-      - grafana_data:/var/lib/grafana
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
-        failure_action: rollback
-      rollback_config:
-        parallelism: 0
-        order: stop-first
-      labels:
-        - "traefik.enable=true"
-
-        # HTTPS router
-        - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
-        - "traefik.http.routers.grafana.entrypoints=websecure"
-        - "traefik.http.routers.grafana.tls.certresolver=cfresolver"
-        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-
-        # HTTP → HTTPS
-        - "traefik.http.routers.grafana-http.rule=Host(`grafana.${DOMAIN}`)"
-        - "traefik.http.routers.grafana-http.entrypoints=web"
-        - "traefik.http.routers.grafana-http.middlewares=https-redirect"
-
-        # Middlewares
-        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
-        - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
-    networks:
-      - bouquet-net
-
   # ── Arcane (Swarm Management UI) ─────────────────────────────
   arcane:
     image: ghcr.io/getarcaneapp/arcane:latest
@@ -151,6 +102,10 @@ services:
         - "traefik.http.routers.arcane-http.rule=Host(`arcane.${DOMAIN}`)"
         - "traefik.http.routers.arcane-http.entrypoints=web"
         - "traefik.http.routers.arcane-http.middlewares=https-redirect"
+
+        # Middlewares
+        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
     networks:
       - bouquet-net
 
@@ -165,5 +120,4 @@ networks:
 
 volumes:
   traefik_letsencrypt:
-  grafana_data:
   arcane_data:
