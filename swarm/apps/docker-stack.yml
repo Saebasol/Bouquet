@@ -42,6 +42,36 @@ services:
     networks:
       - bouquet-net
 
+  # ── MongoDB ──────────────────────────────────────────────────
+  mongodb:
+    image: mongo:latest
+    expose:
+      - "27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == worker
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+    networks:
+      - bouquet-net
+
   # ── Hibiscus (Frontend) ──────────────────────────────────────
   hibiscus:
     image: ghcr.io/saebasol/hibiscus:latest
@@ -99,8 +129,8 @@ services:
       SUNFLOWER_PRODUCTION: "true"
       SUNFLOWER_HOST: "0.0.0.0"
       SUNFLOWER_SENTRY_DSN: ${SUNFLOWER_SENTRY_DSN}
-      SUNFLOWER_GALLERYINFO_DB_URL: "postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
-      SUNFLOWER_INFO_DB_URL: ${MONGODB_ATLAS_URL}
+      SUNFLOWER_GALLERYINFO_DB_URL: ${POSTGRES_URL}
+      SUNFLOWER_INFO_DB_URL: ${MONGODB_URL}
       SUNFLOWER_INDEX_FILES: '["index-korean.nozomi"]'
       SANIC_WORKER_ACK_TIMEOUT: "60"
     healthcheck:
@@ -160,8 +190,8 @@ services:
       HELIOTROPE_PRODUCTION: "true"
       HELIOTROPE_HOST: "0.0.0.0"
       HELIOTROPE_SENTRY_DSN: ${HELIOTROPE_SENTRY_DSN}
-      HELIOTROPE_GALLERYINFO_DB_URL: "postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
-      HELIOTROPE_INFO_DB_URL: ${MONGODB_ATLAS_URL}
+      HELIOTROPE_GALLERYINFO_DB_URL: ${POSTGRES_URL}
+      HELIOTROPE_INFO_DB_URL: ${MONGODB_URL}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/ || exit 1"]
       interval: 15s
@@ -210,3 +240,4 @@ networks:
 
 volumes:
   pgdata:
+  mongodb_data:
